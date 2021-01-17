@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>web-app</title>
+  </head>
+  <body>
+    <div id="app">
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.2.3/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.1.1/firebase-auth.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+
+    <script>
+      var firebaseConfig = {
+        apiKey: "AIzaSyBaztkqjflBhuUaYUMK2C5MGGQoMtgMPYc",
+        authDomain: "web-app-f920d.firebaseapp.com",
+        projectId: "web-app-f920d",
+        storageBucket: "web-app-f920d.appspot.com",
+        messagingSenderId: "1061861386620",
+        appId: "1:1061861386620:web:eb22d29726ff84a285dcf9",
+        measurementId: "G-6DB3VP662D"
+      };
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+
+      const app = new Vue({
+        el: "#app",
+        data(){
+          return {
+            firebase,
+            //user: false
+          }
+        },
+        mounted(){
+          firebase.auth().onAuthStateChanged(this.onAuthStateChanged);
+        },
+        methods:{
+          onAuthStateChanged(user){
+            if(user){
+              location.href = "todoList.html"
+            } else {
+              this.user = null;
+              location.href = "login.html"
+            }
+          }
+        }
+      })
+    </script>
+  </body>
+</html>
