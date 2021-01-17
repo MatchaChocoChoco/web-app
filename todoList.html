@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>web-app - todoList</title>
+
+    <!-- Vuetifyに必要なファイルを読み込む -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+
+    <style>
+        /* チラつき防止 */
+        [v-cloak] {
+            display: none;
+        }
+    </style>
+
+</head>
+<body style="background-color: #ECEFF1;">
+    <div id="app" v-cloak>
+        <v-app style="background-color: #ECEFF1;">
+            <v-app-bar dark app dense color="primary">
+                TODO FIREBASE
+                <v-spacer></v-spacer>
+                <v-btn outlined v-if="user || user ==false" :loading="user===false" v-on:click="firebase.auth().signOut()">
+                    サインアウト
+                </v-btn>
+            </v-app-bar>
+            <v-main>
+                <v-container fluid>
+                    
+                    <v-row v-if="user===null" justify="center">    
+                        <v-col cols="12" md="8">
+                            <v-card>
+                                <v-card-text>
+                                    <v-text-field v-model="email" label="メールアドレス"></v-text-field>
+                                    <v-text-field v-model="password" type="password" label="パスワード"></v-text-field>
+                                </v-card-text>
+                                <v-card-actions>
+                                    <v-spacer></v-spacer>
+                                    <v-btn color="primary" v-on:click="signin()">サインイン</v-btn>
+                                </v-card-actions>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+
+                    <v-row v-if="user">
+                        <!--左側-->
+                        <v-col cols="12" lg="3">
+                            <v-card>
+                                <v-card-title>新規追加</v-card-title>
+                                <v-card-subtitle>Hello, {{ user.displayName }}さん</v-card-subtitle>
+                                <v-divider></v-divider>
+                                <v-card-text>
+                                    <v-text-field v-model="title" label="タイトル" outlined dense hide-details class="mb-3"></v-text-field>
+                                    <v-textarea v-model="contents" label="内容" outlined dense hide-details class="mb-3"></v-textarea>
+                                    <v-btn color="primary" v-on:click="addItem()">追加</v-btn>
+                                </v-card-text>
+                            </v-card>
+                        </v-col>
+
+                        <!--右側-->
+                        <v-col cols="12" lg="9">
+                            <v-card>
+                                <v-card-title>リスト</v-card-title>
+                                <v-divider></v-divider>
+                                <v-data-table :headers="todoHeaders" :items="todoList">
+                                    <template v-slot:item.title="{ item }">
+                                        <div v-if="item.isDone">
+                                            <v-icon right>mdi-checkbox-marked</v-icon>
+                                            <s>{{ item.title }}</s>
+                                        </div>
+                                        <div v-else>
+                                            <v-icon left>mdi-checkbox-blank-outline</v-icon>
+                                            {{ item.title }}
+                                        </div>
+                                        
+                                    </template>
+                                    <template v-slot:item.actions="{ item }">
+                                        <v-btn v-if="item.isDone" color="primary" outlined v-on:click="doneItem(item.todoId, false)">
+                                            未完了に戻す
+                                        </v-btn>
+                                        <v-btn v-else color="primary" v-on:click="doneItem(item.todoId, true)">
+                                            完了にする
+                                        </v-btn>
+                                        <v-dialog max-width="600">
+                                            <template v-slot:activator="{ on, attrs }">
+                                                <v-btn color="secondary" dark v-bind="attrs" v-on="on">詳細</v-btn>
+                                            </template>
+                                            <v-card>
+                                                <v-card-title>{{ item.title }}</v-card-title>
+                                                <v-divider></v-divider>
+                                                <v-card-text>
+                                                    <div class="mt-3">{{ item.contents || "詳細はありません" }}</div>
+                                                    <v-divider></v-divider>
+                                                    <div>
+                                                        <small>TODO ID: {{ item.todoId }}</small>
+                                                    </div>
+                                                    <div>
+                                                        <small>作成日時：{{ toStringFromUnixTime(item.createdAt) }}</small>
+                                                        <small>更新日時：{{ toStringFromUnixTime(item.updatedAt) }}</small>
+                                                    </div>
+                                                </v-card-text>
+                                            </v-card>
+                                        </v-dialog>
+                                        <v-btn color="info" v-on:click="openEditDialog(item.todoId)">編集</v-btn>
+                                        <v-btn color="error" icon v-on:click="deleteItem(item.todoId)">
+                                            <v-icon>mdi-delete</v-icon>
+                                        </v-btn>
+                                    </template>
+                                </v-data-table>
+                            </v-card>
+                        </v-col>
+                    </v-row>
+                    <v-dialog v-model="isOpenEditDialog" max-width="600">
+                        <v-card>
+                            <v-card-title>アイテムを編集</v-card-title>
+                            <v-divider></v-divider>
+                            <v-card-text v-if="tempItem">
+                                <v-text-field v-model="tempItem.title" label="タイトル" outlined dense class="my-3"></v-text-field>
+                                <v-textarea v-model="tempItem.contents" label="コンテンツ" outlined class="my-1"></v-textarea>
+                                <v-checkbox v-model="tempItem.isDone" label="完了"></v-checkbox>
+                                <div>
+                                    <small>TODO ID: {{ tempItem.todoId }}</small>
+                                </div>
+                                <div>
+                                    <small>作成日時：{{ toStringFromUnixTime(tempItem.createdAt) }}</small>
+                                    <small>更新日時：{{ toStringFromUnixTime(tempItem.updatedAt) }}</small>
+                                </div>
+                            </v-card-text>
+                            <v-divider></v-divider>
+                            <v-card-actions>
+                                <v-btn text color="secondary" v-on:click="isOpenEditDialog = false">キャンセル</v-btn>
+                                <v-spacer></v-spacer>
+                                <v-btn color="primary" v-on:click="editItem()">変更</v-btn>
+                            </v-card-actions>
+                        </v-card>
+                    </v-dialog>
+                </v-container>
+            </v-main>
+        </v-app>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.1/uuid.min.js"></script>
+
+    <!-- Moment + Moment Timezone -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.32/moment-timezone-with-data.min.js"></script>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.1.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.1.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.1.1/firebase-firestore.js"></script>
+
+    <script>
+
+        firebase.initializeApp({
+            apiKey: "AIzaSyBaztkqjflBhuUaYUMK2C5MGGQoMtgMPYc",
+            authDomain: "web-app-f920d.firebaseapp.com",
+            projectId: "web-app-f920d",
+            storageBucket: "web-app-f920d.appspot.com",
+            messagingSenderId: "1061861386620",
+            appId: "1:1061861386620:web:eb22d29726ff84a285dcf9",
+            measurementId: "G-6DB3VP662D"
+        });
+
+        const app = new Vue({
+            el: "#app",
+            vuetify: new Vuetify(),
+            data(){
+                return {
+                    firebase,
+                    email: "",
+                    password: "",
+                    user: false,
+                    firestoreUnsubscribe: null,
+                    isFirestoreProcessing: false,
+
+                    title: "",
+                    contents: "",
+                    isOpenEditDialog: false,
+                    tempItem: null,
+                    todoHeaders: [
+                        { 
+                            text: "タイトル",
+                            value: "title",
+                        },
+                        {
+                            text: "操作",
+                            value: "actions",
+                            sortable: false,
+                            align: "end"
+                        }
+                    ],
+                    todoList: [
+                    //     {
+                    //         todoId: uuid.v4(),
+                    //         isDone: false,
+                    //         title: "学生証の更新（平成31年度用裏面シールの配布）",
+                    //         contents: "事務所で配布",
+                    //         createdAt: 0,
+                    //         updatedAt: 0
+                    //     },
+                    //     {
+                    //         todoId: uuid.v4(),
+                    //         isDone: false,
+                    //         title: "ヨーグルトを買う",
+                    //         contents: "もう冷蔵庫にない",
+                    //         createdAt: 1606043006,
+                    //         updatedAt: 1606043007,
+                    //     },
+                    //     {
+                    //         todoId: uuid.v4(),
+                    //         isDone: false,
+                    //         title: "卵を食べる",
+                    //         contents: "賞味期限が近い",
+                    //         createdAt: 1606043008,
+                    //         updatedAt: 1606043009,
+                    //     },
+                    //     {
+                    //         todoId: uuid.v4(),
+                    //         isDone: false,
+                    //         title: "明日13時 電話する",
+                    //         contents: "",
+                    //         createdAt: 1606043010,
+                    //         updatedAt: 1606043011,
+                    //     },
+                    ]
+                }
+            },
+            mounted(){
+                firebase.auth().onAuthStateChanged(this.onAuthStateChanged);
+            },
+            methods:{
+                async signin(){
+                    try{
+                        await firebase.auth().signInWithEmailAndPassword(this.email, this.password);
+                    }catch(err){
+                        alert(err.message);
+                    }
+                },
+                onAuthStateChanged(user){
+                    if(user){
+                        this.user = user.toJSON();
+                        this.firestoreUnsubscribe = firebase.firestore()
+                            .collection("practice")
+                            .doc(user.uid)
+                            .collection("todo")
+                            .orderBy("updatedAt", "desc")
+                            .limit(50)
+                            .onSnapshot(this.onSnapshotTodoList);
+                    } else {
+                        this.user = null;
+                        location.href = "index.html"
+                    }
+                },
+                onSnapshotTodoList(querySnapshot){
+                    this.$set(this, "todoList", querySnapshot.docs.map(v => Object.assign(v.data(), { todoId: v.id})));
+                },
+
+
+                finedIndexByTodoId(todoId){
+                    return this.todoList.findIndex(v=>v.todoId == todoId)
+                },
+                async addItem(){
+                    if(!this.title) return alert("タイトルの入力は必須です");
+                    try {
+                        let todoId = uuid.v4();
+                        this.isFirestoreProcessing = true;
+                        let now = moment();
+                        await firebase.firestore()
+                            .collection("practice")
+                            .doc(this.user.uid)
+                            .collection("todo")
+                            .doc(todoId)
+                            .set({
+                                todoId,
+                                isDone: false,
+                                title: this.title,
+                                contents: this.contents,
+                                createdAt: now.unix(),
+                                updatedAt: now.unix()   
+                            });
+                        this.title = "";
+                        this.contents = "";
+                    } catch (err) {
+                        this.isFirestoreProcessing = false;
+                        console.error(err);
+                    }
+                },
+                openEditDialog(todoId){
+                    let index = this.finedIndexByTodoId(todoId);
+                    if(index == -1) return;
+
+                    this.isOpenEditDialog = true;
+                    this.tempItem = JSON.parse(JSON.stringify(this.todoList[index]));
+                },
+                editItem(){
+                    if(!this.tempItem) return;
+
+                    let index = this.finedIndexByTodoId(this.tempItem.todoId);
+                    if(index == -1) return;
+
+                    this.tempItem.updatedAt = moment().unix();
+                    this.$set(this.todoList, index, this.tempItem);
+                    this.isOpenEditDialog = false;
+                },
+                doneItem(todoId, isDone){
+                    let index = this.finedIndexByTodoId(todoId);
+                    console.log(index)
+                    if(index == -1) return;
+
+                    this.todoList[index].isDone = isDone;
+                },
+                deleteItem(todoId){
+                    let index = this.finedIndexByTodoId(todoId);
+                    if(index == -1) return;
+                    if(!window.confirm(`「${this.todoList[index].title}」のTODOを削除しますか？`)) return ;
+                    
+                    this.todoList.splice(index, 1);
+                },
+                toStringFromUnixTime(unixTimeSec){
+                    return moment.unix(unixTimeSec).tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss(z)')
+                }
+            }
+        })
+    </script>
+</body>
+</html>
