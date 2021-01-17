@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>web-app - ログインページ</title>
+
+    <!-- Vuetifyに必要なファイルを読み込む -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+  </head>
+  <body　style="background-color: #ECEFF1;">
+    <div id="app">
+      <v-app style="background-color: #ECDFF1;">
+        <v-app-bar dark app dense color="primary">
+          web-app
+        </v-app-bar>
+        <v-main>
+          <v-container fluid>
+            <v-row justify="center">
+              <v-col cols="12" md="8">
+                <v-card>
+                  <v-card-text>
+                    <v-text-field v-model="email" label="メールアドレス"></v-text-field>
+                    <v-text-field v-model="password" type="password" label="パスワード"></v-text-field>
+                    <div>
+                      <p>{{ user }}, {{ user.uid }}</p>
+                    </div>
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" v-on:click="signin()">
+                      サインイン
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-main>
+      </v-app>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.2.3/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.1.1/firebase-auth.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.js"></script>
+
+    <script>
+      var firebaseConfig = {
+        apiKey: "AIzaSyBaztkqjflBhuUaYUMK2C5MGGQoMtgMPYc",
+        authDomain: "web-app-f920d.firebaseapp.com",
+        projectId: "web-app-f920d",
+        storageBucket: "web-app-f920d.appspot.com",
+        messagingSenderId: "1061861386620",
+        appId: "1:1061861386620:web:eb22d29726ff84a285dcf9",
+        measurementId: "G-6DB3VP662D"
+      };
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+
+      const app = new Vue({
+        el: "#app",
+        vuetify: new Vuetify(),
+        data(){
+          return {
+            firebase,
+            email: "",
+            password: "",
+            uid: "",
+            user: false
+          }
+        },
+        mounted(){
+          firebase.auth().onAuthStateChanged(this.onAuthStateChanged);
+        },
+        methods:{
+          async signin(){
+            try{
+              await firebase.auth().signInWithEmailAndPassword(this.email, this.password);
+            } catch(err){
+              alert(err.message);
+            }
+          },
+          onAuthStateChanged(user){
+            if(user){
+              location.href = "todoList.html"
+            } else {
+              this.user = null;
+            }
+          }
+        }
+      })
+    </script>
+  </body>
+</html>
