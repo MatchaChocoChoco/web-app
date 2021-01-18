@@ -25,7 +25,7 @@
                 <v-btn class="ma-2" outlined @click.stop="drawer = !drawer">
                     <v-icon>mdi-library-books</v-icon>
                 </v-btn>
-                TODO FIREBASE
+                todoList
                 <v-spacer></v-spacer>
                 <v-btn outlined v-if="user || user ==false" :loading="user===false" v-on:click="firebase.auth().signOut()">
                     サインアウト
