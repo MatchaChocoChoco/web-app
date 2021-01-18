@@ -370,29 +370,57 @@
                     this.isOpenEditDialog = true;
                     this.tempItem = JSON.parse(JSON.stringify(this.todoList[index]));
                 },
-                editItem(){
+                async editItem(){
                     if(!this.tempItem) return;
 
-                    let index = this.finedIndexByTodoId(this.tempItem.todoId);
-                    if(index == -1) return;
+                    // let index = this.finedIndexByTodoId(this.tempItem.todoId);
+                    // if(index == -1) return;
 
-                    this.tempItem.updatedAt = moment().unix();
-                    this.$set(this.todoList, index, this.tempItem);
+                    // this.tempItem.updatedAt = moment().unix();
+                    // this.$set(this.todoList, index, this.tempItem);
+
+                    await firebase.firestore()
+                        .collection("users")
+                        .doc(this.user.uid)
+                        .collection("appData")
+                        .doc("todoList")
+                        .collection("lists")
+                        .doc(this.todoListId)
+                        .collection("todo")
+                        .doc(this.tempItem.todoId)
+                        .update({
+                            isDone: this.tempItem.isDone,
+                            title: this.tempItem.title,
+                            contents: this.tempItem.contents,
+                            updatedAt: moment().unix()   
+                        });
+
                     this.isOpenEditDialog = false;
                 },
-                doneItem(todoId, isDone){
+                async doneItem(todoId, isDone){
                     let index = this.finedIndexByTodoId(todoId);
-                    console.log(index)
+                    //console.log(index)
                     if(index == -1) return;
 
-                    this.todoList[index].isDone = isDone;
+                    this.tempItem = JSON.parse(JSON.stringify(this.todoList[index]));
+                    this.tempItem.isDone = isDone;
+                    await this.editItem();
                 },
-                deleteItem(todoId){
+                async deleteItem(todoId){
                     let index = this.finedIndexByTodoId(todoId);
                     if(index == -1) return;
                     if(!window.confirm(`「${this.todoList[index].title}」のTODOを削除しますか？`)) return ;
                     
-                    this.todoList.splice(index, 1);
+                    await firebase.firestore()
+                        .collection("users")
+                        .doc(this.user.uid)
+                        .collection("appData")
+                        .doc("todoList")
+                        .collection("lists")
+                        .doc(this.todoListId)
+                        .collection("todo")
+                        .doc(todoId)
+                        .delete();
                 },
                 toStringFromUnixTime(unixTimeSec){
                     return moment.unix(unixTimeSec).tz('Asia/Tokyo').format('YYYY/MM/DD HH:mm:ss(z)')
